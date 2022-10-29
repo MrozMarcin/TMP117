@@ -1,14 +1,21 @@
 #include "TMP117.h"
 
-static HAL_StatusTypeDef TMP117_WriteRegisters(TMP117 *dev, uint8_t reg, uint8_t *data, uint8_t length);
-static HAL_StatusTypeDef TMP117_WriteRegister(TMP117 *dev, uint8_t reg, uint8_t *data);
-static HAL_StatusTypeDef TMP117_ReadRegisters(TMP117 *dev, uint8_t reg, uint8_t *data, uint8_t length);
-static HAL_StatusTypeDef TMP117_ReadRegister(TMP117 *dev, uint8_t reg, uint8_t *data);
+static int8_t TMP117_WriteRegisters(TMP117 *dev, uint8_t reg, uint8_t *data, uint8_t length);
+static int8_t TMP117_WriteRegister(TMP117 *dev, uint8_t reg, uint8_t *data);
+static int8_t TMP117_ReadRegisters(TMP117 *dev, uint8_t reg, uint8_t *data, uint8_t length);
+static int8_t TMP117_ReadRegister(TMP117 *dev, uint8_t reg, uint8_t *data);
+
+static void TMP117_Delay(uint32_t msec);
 
 int8_t TMP117_Init(TMP117 *dev, I2C_HandleTypeDef * i2cHandle)
 {
+	if(dev == NULL || i2cHandle == NULL)
+	{
+		return -1;
+	}
+	
 	dev->i2cHandle = i2cHandle;
-	dev->isAvalible = TMP117_is_present(dev);    
+	dev->isAvalible = TMP117_is_present(dev);
 
 	return 0;
 }
@@ -20,25 +27,22 @@ int8_t TMP117_Init(TMP117 *dev, I2C_HandleTypeDef * i2cHandle)
  */
 bool TMP117_is_present(TMP117 *dev)
 {
-	const uint32_t REQUEST_TIMEOUT_MS = 10;
-	const uint8_t 	MAX_AMOUNT_OF_FULL_RETRIES		= 5;
-	const uint32_t	MAX_AMOUNT_OF_IS_READY_TRIALS	= 20;
-	uint8_t retry = 0;
-	bool ret = false;
-	
-	do
+	if(dev == NULL)
 	{
-		if(HAL_I2C_IsDeviceReady(dev->i2cHandle, TMP117_I2C_ADDR, MAX_AMOUNT_OF_IS_READY_TRIALS, REQUEST_TIMEOUT_MS) == HAL_OK)
-		{
-			ret = true;
-			break;
-		}
-		else
-		{
-			retry++;
-		}
-	}while(retry < MAX_AMOUNT_OF_FULL_RETRIES);
-	return ret;
+		return false;
+	}	
+	
+	const uint32_t REQUEST_TIMEOUT_MS = 10;
+	const uint32_t	MAX_AMOUNT_OF_IS_READY_TRIALS	= 20;
+
+	if(HAL_I2C_IsDeviceReady(dev->i2cHandle, TMP117_I2C_ADDR, MAX_AMOUNT_OF_IS_READY_TRIALS, REQUEST_TIMEOUT_MS) == HAL_OK)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 
@@ -49,12 +53,17 @@ bool TMP117_is_present(TMP117 *dev)
  */
 bool TMP117_is_conversion_done(TMP117 *dev)
 {
-	bool ret = false;
+	if(dev == NULL)
+	{
+		return false;
+	}
 	
+	bool ret = false;
+
 	uint8_t val[2] = {0x00};
 	TMP117_ReadRegisters(dev, CONFIG_REG, &val[0], 2);
 	uint16_t val_16 = (val[0] << 8) | val[1];
-	
+
 	if((val_16 & DATA_READY) == DATA_READY)
 	{
 		ret = true;
@@ -67,31 +76,36 @@ bool TMP117_is_conversion_done(TMP117 *dev)
  * @param  none
  * @retval -1 if operation is done and 0 if not
  */
-HAL_StatusTypeDef TMP117_set_conversion_mode(TMP117 *dev, Conv_modes_t conv_mode)
+int8_t TMP117_set_conversion_mode(TMP117 *dev, Conv_modes_t conv_mode)
 {
-	HAL_StatusTypeDef status = HAL_ERROR;
+	if(dev == NULL)
+	{
+		return -1;
+	}
 	
+	int8_t status = -1;
+
 	uint8_t val[2] = {0x00};
 	TMP117_ReadRegisters(dev, CONFIG_REG, &val[0], 2);
 	uint16_t val_16 = (val[0] << 8) | val[1];
-	
+
 	if((val_16 & conv_mode) != conv_mode)
 	{
 		uint16_t mod_val_16 = (val_16 | conv_mode);
 		uint8_t mod_val[2] = {(mod_val_16 & 0xFF00)<<8, (mod_val_16 & 0x00FF)};
-		
+
 		TMP117_WriteRegisters(dev, CONFIG_REG, &mod_val[0], 2);
-		
+
 		TMP117_ReadRegisters(dev, CONFIG_REG, &val[0], 2);
 		val_16 = (val[0] << 8) | val[1];
 		if((val_16 & conv_mode) == conv_mode)
 		{
-			status = HAL_OK;
+			status = 0;
 		}
 	}
 	else
 	{
-		status = HAL_OK;
+		status = 0;
 	}
 	return status;
 }
@@ -101,31 +115,36 @@ HAL_StatusTypeDef TMP117_set_conversion_mode(TMP117 *dev, Conv_modes_t conv_mode
  * @param  none
  * @retval -1 if operation is done and 0 if not
  */
-HAL_StatusTypeDef TMP117_set_conversion_cycle(TMP117 *dev, Conv_cycle_modes_t conv_cyc_mode)
+int8_t TMP117_set_conversion_cycle(TMP117 *dev, Conv_cycle_modes_t conv_cyc_mode)
 {
-	HAL_StatusTypeDef status = HAL_ERROR;
+	if(dev == NULL)
+	{
+		return -1;
+	}
 	
+	int8_t status = -1;
+
 	uint8_t val[2] = {0x00};
 	TMP117_ReadRegisters(dev, CONFIG_REG, &val[0], 2);
 	uint16_t val_16 = (val[0] << 8) | val[1];
-	
+
 	if((val_16 & conv_cyc_mode) != conv_cyc_mode)
 	{
 		uint16_t mod_val_16 = (val_16 | conv_cyc_mode);
 		uint8_t mod_val[2] = {(mod_val_16 & 0xFF00)<<8, (mod_val_16 & 0x00FF)};
 
 		TMP117_WriteRegisters(dev, CONFIG_REG, &mod_val[0], 2);
-		
+
 		TMP117_ReadRegisters(dev, CONFIG_REG, &val[0], 2);
 		val_16 = (val[0] << 8) | val[1];
 		if((val_16 & conv_cyc_mode) == conv_cyc_mode)
 		{
-			status = HAL_OK;
+			status = 0;
 		}
 	}
 	else
 	{
-		status = HAL_OK;
+		status = 0;
 	}
 	return status;
 }
@@ -146,34 +165,103 @@ float TMP117_get_temp(TMP117 *dev)
 	{
 		TMP117_set_conversion_mode(dev, CONTINOUS_CONV_MODE);
 		TMP117_set_conversion_cycle(dev, CYCE_125_MS_2);
-			
-		/* 8 samples avg with 125ms cycle */		
-		while(TMP117_is_conversion_done(dev)==false){;};
-		buff_8[0] = TEMP_RESULT_REG;		
+
+		/* 8 samples avg with 125ms cycle */
+		for(uint8_t i = 0; i < 10; i++)
+		{
+			if(TMP117_is_conversion_done(dev) == true)
+			{
+				break;
+			}
+			else
+			{
+				TMP117_Delay(25);
+			}
+		}
+		buff_8[0] = TEMP_RESULT_REG;
 		TMP117_ReadRegisters(dev, TEMP_RESULT_REG, &buff_8[0], 2);
-		
+
 		int16_t buff_16 = (buff_8[0] << 8) | buff_8[1]; 		// raw value
-		temperature = buff_16 * LSB;							// calculated value in *C
+		temperature = buff_16 * LSB;												// calculated value in *C
 	}
 	return temperature;
 }
 
-HAL_StatusTypeDef TMP117_WriteRegisters(TMP117 *dev, uint8_t reg, uint8_t *data, uint8_t length)
+int8_t TMP117_WriteRegisters(TMP117 *dev, uint8_t reg, uint8_t *data, uint8_t length)
 {
-	return HAL_I2C_Mem_Write(dev->i2cHandle, TMP117_I2C_ADDR, reg, I2C_MEMADD_SIZE_8BIT, data, length, TMP117_WAIT_TIME_MAX);
+	if(dev == NULL || data == NULL || length <= 0)
+	{
+		return -1;
+	}
+	HAL_StatusTypeDef status =  HAL_I2C_Mem_Write(dev->i2cHandle, TMP117_I2C_ADDR, reg, I2C_MEMADD_SIZE_8BIT, data, length, TMP117_WAIT_TIME_MAX);
+	if(status != HAL_OK)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
-HAL_StatusTypeDef TMP117_WriteRegister(TMP117 *dev, uint8_t reg, uint8_t *data)
+int8_t TMP117_WriteRegister(TMP117 *dev, uint8_t reg, uint8_t *data)
 {
-	return HAL_I2C_Mem_Write(dev->i2cHandle, TMP117_I2C_ADDR, reg, I2C_MEMADD_SIZE_8BIT, data, 1, TMP117_WAIT_TIME_MAX);
+	if(dev == NULL || data == NULL)
+	{
+		return -1;
+	}
+	HAL_StatusTypeDef status =  HAL_I2C_Mem_Write(dev->i2cHandle, TMP117_I2C_ADDR, reg, I2C_MEMADD_SIZE_8BIT, data, 1, TMP117_WAIT_TIME_MAX);
+	if(status != HAL_OK)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
-HAL_StatusTypeDef TMP117_ReadRegisters(TMP117 *dev, uint8_t reg, uint8_t *data, uint8_t length)
+int8_t TMP117_ReadRegisters(TMP117 *dev, uint8_t reg, uint8_t *data, uint8_t length)
 {
-	return HAL_I2C_Mem_Read(dev->i2cHandle, TMP117_I2C_ADDR, reg, I2C_MEMADD_SIZE_8BIT, data, length, TMP117_WAIT_TIME_MAX);
+	if(dev == NULL || data == NULL || length <= 0)
+	{
+		return -1;
+	}
+	HAL_StatusTypeDef status = HAL_I2C_Mem_Read(dev->i2cHandle, TMP117_I2C_ADDR, reg, I2C_MEMADD_SIZE_8BIT, data, length, TMP117_WAIT_TIME_MAX);
+	if(status != HAL_OK)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
-HAL_StatusTypeDef TMP117_ReadRegister(TMP117 *dev, uint8_t reg, uint8_t *data)
+int8_t TMP117_ReadRegister(TMP117 *dev, uint8_t reg, uint8_t *data)
 {
-	return HAL_I2C_Mem_Read(dev->i2cHandle, TMP117_I2C_ADDR, reg, I2C_MEMADD_SIZE_8BIT, data, 1, TMP117_WAIT_TIME_MAX);
+	if(dev == NULL || data == NULL)
+	{
+		return -1;
+	}
+	HAL_StatusTypeDef status = HAL_I2C_Mem_Read(dev->i2cHandle, TMP117_I2C_ADDR, reg, I2C_MEMADD_SIZE_8BIT, data, 1, TMP117_WAIT_TIME_MAX);
+	if(status != HAL_OK)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+/**
+ * @brief  Creates time delay
+ * @param  msec number of miliseconds to wait
+ * @retval none
+ */
+static void TMP117_Delay(uint32_t msec)
+{
+	HAL_Delay(msec);
+	//osDelay(msec);
 }

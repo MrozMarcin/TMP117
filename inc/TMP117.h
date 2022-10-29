@@ -4,10 +4,10 @@
 #include "stm32h7XX_hal.h"
 #include "stdbool.h"
 
-#define TMP117_I2C_ADDR   		(0x48 << 1) /* 0b1010000x */
+#define TMP117_I2C_ADDR	 			(0x48 << 1) /* 0b1010000x */
 #define TMP117_WAIT_TIME_MAX 	0xFFFF
 
-/****************** DEV ADDR ***************/	
+/****************** DEV ADDR ***************/
 #define TMP117_ID						0x0117
 
 /**************** REGISTERS ***************/
@@ -20,16 +20,16 @@
 
 typedef struct
 {
-    I2C_HandleTypeDef *i2cHandle;
-    bool isAvalible;
+		I2C_HandleTypeDef *i2cHandle;
+		bool isAvalible;
 }TMP117;
 
-typedef enum 
+typedef enum
 {
 	DATA_READY			= (1 << 13),
 }Data_ready_states_t;
 
-typedef enum 
+typedef enum
 {
 	CONTINOUS_CONV_MODE		= (0 << 10),
 	SHUTDOWN_MODE					= (1 << 10),
@@ -51,8 +51,8 @@ typedef enum // values valid if avg mode is default
 
 bool TMP117_is_present(TMP117 *dev);
 bool TMP117_is_conversion_done(TMP117 *dev);
-HAL_StatusTypeDef TMP117_set_conversion_mode(TMP117 *dev, Conv_modes_t conv_mode);
-HAL_StatusTypeDef TMP117_set_conversion_cycle(TMP117 *dev, Conv_cycle_modes_t conv_cyc_mode);
+int8_t TMP117_set_conversion_mode(TMP117 *dev, Conv_modes_t conv_mode);
+int8_t TMP117_set_conversion_cycle(TMP117 *dev, Conv_cycle_modes_t conv_cyc_mode);
 float TMP117_get_temp(TMP117 *dev);
 
 #endif /* TMP117_DRIVER_H */
